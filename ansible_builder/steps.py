@@ -57,7 +57,7 @@ class GalaxySteps(Steps):
 
 
 class BindepSteps(Steps):
-    def __init__(self, context_file):
+    def __init__(self, context_file, collection_files):
         self.steps = []
         sanitized_files = []
         if context_file:
@@ -67,6 +67,14 @@ class BindepSteps(Steps):
                 "ADD {} /build/".format(file_naming)
             )
             sanitized_files.append(os.path.join('/build/', file_naming))
+
+        for collection_file in collection_files:
+            abs_path = os.path.join(
+                constants.base_collections_path,
+                'ansible_collections',
+                collection_file
+            )
+            sanitized_files.append(abs_path)
 
         if sanitized_files:
             self.steps.append(

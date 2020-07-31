@@ -56,7 +56,17 @@ def process(data_dir=base_collections_path):
 
         sys_file = CD.get_dependency('system')
         if sys_file:
-            sys_req.append(os.path.join(namespace, name, sys_file))
+            # filter out files that would return blank content
+            with open(os.path.join(path, sys_file), 'r') as f:
+                sys_content = f.read()
+            non_test = False
+            for line in sys_content.split('\n'):
+                if (not line.strip()) or line.startswith('#') or ('test' in line):
+                    continue
+                non_test = True
+                break
+            if non_test:
+                sys_req.append(os.path.join(namespace, name, sys_file))
 
     return {
         'python': py_req,
