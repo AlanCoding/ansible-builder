@@ -62,24 +62,24 @@ class GalaxySteps(Steps):
 class BindepSteps(Steps):
     def __init__(self, context_file):
         self.steps = []
-        sanitized_files = []
-        if context_file:
-            # requirements file added to build context
-            file_naming = os.path.basename(context_file)
-            self.steps.append(
-                "ADD {0} /build/".format(file_naming)
-            )
-            sanitized_files.append(os.path.join('/build/', file_naming))
+        if not context_file:
+            return
 
-        if sanitized_files:
-            self.steps.append(
-                "RUN pip3 install bindep"
-            )
-
-        for file in sanitized_files:
-            self.steps.append(
-                "RUN dnf -y install $(bindep -b -f {0})".format(file)
-            )
+        # requirements file added to build context
+        self.steps.append("ADD {0} /build/".format(context_file))
+        self.steps.append("RUN pip3 install bindep")
+        container_path = os.path.join('/build/', context_file)
+        # Create system-specific file of dnf requirements, details:
+        # - pipe output of bindep to bindep_out.txt, which becomes input to dnf
+        # - missing requirements cause exit code of 1, we have to mask this for docker/podman
+        self.steps.append(
+            'RUN bindep -b -f {0} >> /build/bindep_out.txt; exit 0'.format(container_path)
+        )
+        # Install those files, details:
+        # - if bindep found nothing to install, then it leaves blank file
+        self.steps.append(
+            "RUN if [ -s /build/bindep_out.txt ]; then dnf -y install $(cat /build/bindep_out.txt); fi"
+        )
 
 
 class PipSteps(Steps):
