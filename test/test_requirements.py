@@ -21,3 +21,12 @@ def test_remove_unwanted_requirements():
         'bar',
         'zoo'
     ]
+
+
+def test_skip_bad_formats():
+    """A single incorrectly formatted requirement should warn, but not block other reqs"""
+    assert sanitize_requirements([
+        'foo',
+        'zizzer zazzer zuzz',  # not okay
+        'bar'
+    ]) == ['foo', 'bar']
