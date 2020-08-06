@@ -8,7 +8,7 @@ from .colors import MessageColors
 from .main import AnsibleBuilder, DefinitionError
 from . import constants
 from .introspect import add_introspect_options, process
-from .requirements import sanitize_requirements
+from .requirements import sanitize_requirements, sanitize_bindep
 
 
 def run():
@@ -28,6 +28,7 @@ def run():
             data = process(folder)
             if args.sanitize:
                 data['python'] = sanitize_requirements(data['python'])
+                data['system'] = sanitize_bindep(data['system'])
                 print()
                 print('Sanitized dependencies for {0}'.format(folder))
                 print(yaml.dump(data, default_flow_style=False))

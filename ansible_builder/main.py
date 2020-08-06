@@ -8,7 +8,7 @@ from . import constants
 from .colors import MessageColors
 from .steps import AdditionalBuildSteps, GalaxySteps, PipSteps, IntrospectionSteps, BindepSteps
 from .utils import run_command
-from .requirements import sanitize_requirements
+from .requirements import sanitize_requirements, sanitize_bindep
 import ansible_builder.introspect
 
 
@@ -263,22 +263,36 @@ class Containerfile:
         if python_req_file:
             with open(self.definition.get_dep_abs_path('python'), 'r') as f:
                 user_py_reqs = f.read().split('\n')
-            collection_pip.extend(user_py_reqs)
-        collection_pip = sanitize_requirements(collection_pip)
+            collection_pip['user'] = user_py_reqs
+        pip_list = sanitize_requirements(collection_pip)
 
-        py_req_text = '\n'.join(collection_pip)
+        py_req_text = '\n'.join(pip_list)
         if py_req_text.strip():
             pip_file = os.path.join(self.build_context, 'requirements.txt')
             with open(pip_file, 'w') as f:
-                f.write('\n'.join(collection_pip))
+                f.write(py_req_text)
 
-        self.steps.extend(PipSteps('requirements.txt'))
+            self.steps.extend(PipSteps('requirements.txt'))
 
         return self.steps
 
     def prepare_system_steps(self, collection_bindep):
         system_req_file = self.definition.get_dep('system')
-        self.steps.extend(BindepSteps(system_req_file, collection_bindep))
+
+        if system_req_file:
+            with open(self.definition.get_dep_abs_path('system'), 'r') as f:
+                user_py_reqs = f.read().split('\n')
+            collection_pip['user'] = user_py_reqs
+        system_list = sanitize_bindep(collection_bindep)
+
+        system_req_text = '\n'.join(system_list + [''])
+        if system_req_text.strip():
+            system_file = os.path.join(self.build_context, 'bindep.txt')
+            with open(system_file, 'w') as f:
+                f.write('\n'.join(system_req_text))
+
+            self.steps.extend(BindepSteps('bindep.txt'))
+
         return self.steps
 
     def write(self):

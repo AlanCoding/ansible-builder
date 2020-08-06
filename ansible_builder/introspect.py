@@ -42,31 +42,29 @@ def process(data_dir=base_collections_path):
             if 'galaxy.yml' in files_list or 'MANIFEST.json' in files_list:
                 paths.append(collection_dir)
 
-    py_req = []
-    sys_req = []
+    py_req = {}
+    sys_req = {}
     for path in paths:
         CD = CollectionDefinition(path)
         namespace, name = CD.namespace_name()
+        key = '{}.{}'.format(namespace, name)
 
         py_file = CD.get_dependency('python')
         if py_file:
-            py_req.extend(
-                pip_file_data(os.path.join(path, py_file))
-            )
+            py_req[key] = pip_file_data(os.path.join(path, py_file))
 
         sys_file = CD.get_dependency('system')
         if sys_file:
             # filter out files that would return blank content
             with open(os.path.join(path, sys_file), 'r') as f:
                 sys_content = f.read()
-            non_test = False
+            ret_lines = []
             for line in sys_content.split('\n'):
-                if (not line.strip()) or line.startswith('#') or ('test' in line):
+                if (not line.strip()) or line.startswith('#'):
                     continue
-                non_test = True
-                break
-            if non_test:
-                sys_req.append(os.path.join(namespace, name, sys_file))
+                ret_lines.append(line)
+            if ret_lines:
+                sys_req[key] = ret_lines
 
     return {
         'python': py_req,
@@ -144,10 +142,10 @@ if __name__ == '__main__':
     add_introspect_options(parser)
     args = parser.parse_args()
     # TODO: modify contract to handle multiple locations more gracefully
-    data = {'python': [], 'system': []}
-    for folder in args.folders:
+    data = {'python': {}, 'system': {}}
+    for folder in reversed(args.folders):
         this_data = process(folder)
-        data['python'].extend(this_data['python'])
-        data['system'].extend(this_data['system'])
+        data['python'].update(this_data['python'])
+        data['system'].update(this_data['system'])
     print(yaml.dump(data, default_flow_style=False))
     sys.exit(0)

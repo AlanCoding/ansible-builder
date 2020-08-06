@@ -15,23 +15,25 @@ EXCLUDE_REQUIREMENTS = frozenset((
 
 
 def sanitize_requirements(py_reqs):
-    parsed = requirements.parse('\n'.join(py_reqs))
-
     # de-duplication
     consolidated = []
     seen_pkgs = set()
-    for req in parsed:
-        if req.name is None:
-            consolidated.append(req)
-            continue
-        if req.name in seen_pkgs:
-            for prior_req in consolidated:
-                if req.name == prior_req.name:
-                    prior_req.specs.extend(req.specs)
-                    break
-            continue
-        consolidated.append(req)
-        seen_pkgs.add(req.name)
+    for collection, reqs in py_reqs.items():
+        try:
+            for req in requirements.parse('\n'.join(reqs)):
+                if req.name is None:
+                    consolidated.append(req)
+                    continue
+                if req.name in seen_pkgs:
+                    for prior_req in consolidated:
+                        if req.name == prior_req.name:
+                            prior_req.specs.extend(req.specs)
+                            break
+                    continue
+                consolidated.append(req)
+                seen_pkgs.add(req.name)
+        except Exception as e:
+            print('Warning: failed to parse requirments from {}, error: {}'.format(collection, e))
 
     # removal of unwanted packages
     sanitized = []
@@ -48,3 +50,10 @@ def sanitize_requirements(py_reqs):
             raise RuntimeError('Could not process {}'.format(req.line))
 
     return sanitized
+
+
+def sanitize_bindep(sys_reqs):
+    consolidated = []
+    for collection, filename in sys_reqs.items():
+        consolidated.append(filename)
+    return consolidated
