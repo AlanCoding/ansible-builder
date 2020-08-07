@@ -27,7 +27,7 @@ def test_additional_build_steps(verb):
 
 def test_system_steps():
     assert list(BindepSteps(
-        'bindep.txt'
+        'bindep.txt', []
     )) == [
         'ADD bindep.txt /build/',
         'RUN pip3 install bindep',
