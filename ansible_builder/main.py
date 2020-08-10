@@ -289,7 +289,7 @@ class Containerfile:
         if system_req_text.strip():
             system_file = os.path.join(self.build_context, 'bindep.txt')
             with open(system_file, 'w') as f:
-                f.write('\n'.join(system_req_text))
+                f.write(system_req_text)
 
             self.steps.extend(BindepSteps('bindep.txt'))
 

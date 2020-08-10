@@ -62,7 +62,7 @@ def sanitize_bindep(collection_sys_reqs):
         for line in lines:
             if (not line.strip()) or line.startswith('#'):
                 continue
-            base_line, _ = line.split('#', 1)
+            base_line = line.split('#')[0]
             base_line = base_line.strip()
             if base_line in consolidated:
                 entry = consolidated.index(base_line)
