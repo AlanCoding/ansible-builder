@@ -59,32 +59,19 @@ class GalaxySteps(Steps):
 class BindepSteps(Steps):
     def __init__(self, context_file, collection_files):
         self.steps = []
-        sanitized_files = []
-        if context_file:
-            # requirements file added to build context
-            file_naming = os.path.basename(context_file)
-            self.steps.append(
-                "ADD {} /build/".format(file_naming)
-            )
-            sanitized_files.append(os.path.join('/build/', file_naming))
+        if not context_file:
+            return
 
-        for collection_file in collection_files:
-            abs_path = os.path.join(
-                constants.base_collections_path,
-                'ansible_collections',
-                collection_file
-            )
-            sanitized_files.append(abs_path)
-
-        if sanitized_files:
-            self.steps.append(
-                "RUN pip3 install bindep"
-            )
-
-        for file in sanitized_files:
-            self.steps.append(
-                "RUN dnf -y install $(bindep -b -f {})".format(file)
-            )
+        # requirements file added to build context
+        self.steps.append("ADD {} /build/".format(context_file))
+        self.steps.append("RUN pip3 install bindep")
+        container_path = os.path.join('/build/', context_file)
+        self.steps.append(
+            'RUN bindep -b -f {} >> /build/bindep_out.txt'.format(container_path)
+        )
+        self.steps.append(
+            "RUN if [ -s /build/bindep_out.txt ]; then dnf -y install $(cat /build/bindep_out.txt); fi"
+        )
 
 
 class PipSteps(Steps):
