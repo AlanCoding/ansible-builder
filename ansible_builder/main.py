@@ -282,7 +282,7 @@ class Containerfile:
         if system_req_file:
             with open(self.definition.get_dep_abs_path('system'), 'r') as f:
                 user_py_reqs = f.read().split('\n')
-            collection_pip['user'] = user_py_reqs
+            collection_bindep['user'] = user_py_reqs
         system_list = sanitize_bindep(collection_bindep)
 
         system_req_text = '\n'.join(system_list + [''])

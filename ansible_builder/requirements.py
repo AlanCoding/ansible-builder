@@ -14,13 +14,14 @@ EXCLUDE_REQUIREMENTS = frozenset((
 ))
 
 
-def sanitize_requirements(py_reqs):
+def sanitize_requirements(collection_py_reqs):
     # de-duplication
     consolidated = []
     seen_pkgs = set()
-    for collection, reqs in py_reqs.items():
+    for collection, lines in collection_py_reqs.items():
         try:
-            for req in requirements.parse('\n'.join(reqs)):
+            for req in requirements.parse('\n'.join(lines)):
+                req.collections = [collection]  # add backref for later
                 if req.name is None:
                     consolidated.append(req)
                     continue
@@ -28,6 +29,7 @@ def sanitize_requirements(py_reqs):
                     for prior_req in consolidated:
                         if req.name == prior_req.name:
                             prior_req.specs.extend(req.specs)
+                            prior_req.collections.append(collection)
                             break
                     continue
                 consolidated.append(req)
@@ -42,18 +44,30 @@ def sanitize_requirements(py_reqs):
             continue
         if req.name is None and req.vcs:
             # A source control requirement like git+, return as-is
-            sanitized.append(req.line)
+            new_line = req.line
         elif req.name:
             specs = ['{}{}'.format(cmp, ver) for cmp, ver in req.specs]
-            sanitized.append(req.name + ','.join(specs))
+            new_line = req.name + ','.join(specs)
         else:
             raise RuntimeError('Could not process {}'.format(req.line))
+
+        sanitized.append(new_line + '  # from collection {}'.format(','.join(req.collections)))
 
     return sanitized
 
 
-def sanitize_bindep(sys_reqs):
+def sanitize_bindep(collection_sys_reqs):
     consolidated = []
-    for collection, filename in sys_reqs.items():
-        consolidated.append(filename)
+    for collection, lines in collection_sys_reqs.items():
+        for line in lines:
+            if (not line.strip()) or line.startswith('#'):
+                continue
+            base_line, _ = line.split('#', 1)
+            base_line = base_line.strip()
+            if base_line in consolidated:
+                entry = consolidated.index(base_line)
+                consolidated[entry] += ', {}'.format(collection)
+            else:
+                fancy_line = line + '  # from collection {}'.format(collection)
+                consolidated.append(fancy_line)
     return consolidated
