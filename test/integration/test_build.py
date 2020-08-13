@@ -101,8 +101,6 @@ class TestPytz:
     def test_build_layer_reuse(self, cli, container_runtime, data_dir, pytz):
         ee_tag, bc_folder = pytz
         ee_def = os.path.join(data_dir, 'pytz', 'execution-environment.yml')
-        if container_runtime == 'podman':
-            pytest.skip('Active issue, see https://github.com/ansible/ansible-builder/issues/69')
         r = cli(
             f'ansible-builder build -c {bc_folder} -f {ee_def} -t {ee_tag} --container-runtime {container_runtime}'
         )
