@@ -259,7 +259,7 @@ class Containerfile:
             collection_pip['user'] = user_py_reqs
         pip_list = sanitize_requirements(collection_pip)
 
-        if ''.join(data['python']).strip():  # only use file if it is non-blank
+        if ''.join(pip_list).strip():  # only use file if it is non-blank
             pip_file = os.path.join(self.build_context, 'requirements.txt')
             write_file(pip_file, pip_list)
             self.steps.extend(PipSteps('requirements.txt'))
