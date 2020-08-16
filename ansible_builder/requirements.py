@@ -54,20 +54,3 @@ def sanitize_requirements(collection_py_reqs):
         sanitized.append(new_line + '  # from collection {}'.format(','.join(req.collections)))
 
     return sanitized
-
-
-def sanitize_bindep(collection_sys_reqs):
-    consolidated = []
-    for collection, lines in collection_sys_reqs.items():
-        for line in lines:
-            if (not line.strip()) or line.startswith('#'):
-                continue
-            base_line = line.split('#')[0]
-            base_line = base_line.strip()
-            if base_line in consolidated:
-                entry = consolidated.index(base_line)
-                consolidated[entry] += ', {}'.format(collection)
-            else:
-                fancy_line = line + '  # from collection {}'.format(collection)
-                consolidated.append(fancy_line)
-    return consolidated

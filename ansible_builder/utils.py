@@ -1,6 +1,8 @@
 import subprocess
 import sys
 import os
+import filecmp
+import shutil
 
 from .colors import MessageColors
 
@@ -32,8 +34,18 @@ def write_file(filename: str, lines: list):
     new_text = '\n'.join(lines)
     if os.path.exists(filename):
         with open(filename, 'r') as f:
-            if f.read() != new_text:
+            if f.read() == new_text:
                 print(MessageColors.OK + "File {0} is already up-to-date.".format(filename) + MessageColors.ENDC)
                 return
+            else:
+                print(MessageColors.WARNING + 'File {0} had modifications and will be rewritten'.format(filename) + MessageColors.ENDC)
     with open(filename, 'w') as f:
         f.write(new_text)
+
+
+def copy_file(source: str, dest: str):
+    exists = os.path.exists(dest)
+    if (not exists) or (not filecmp.cmp(source, dest, shallow=False)):
+        if exists:
+            print(MessageColors.WARNING + 'File {0} had modifications and will be rewritten'.format(dest) + MessageColors.ENDC)
+        shutil.copy(source, dest)

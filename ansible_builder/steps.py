@@ -34,12 +34,25 @@ class AdditionalBuildSteps(Steps):
 
 
 class IntrospectionSteps(Steps):
-    def __init__(self, context_file):
+    def __init__(self, context_file, user_pip, user_bindep, dest_bindep):
         self.steps = []
         self.steps.extend([
             "ADD {0} /usr/local/bin/introspect".format(context_file),
-            "RUN chmod +x /usr/local/bin/introspect"
+            "RUN chmod +x /usr/local/bin/introspect",
+            "RUN pip3 install bindep"
         ])
+
+        to_run = ['introspect']
+        if user_pip:
+            self.steps.append("ADD {0} /build/".format(user_pip))
+            to_run.extend(['--user-pip', '/build/{0}'.format(user_pip)])
+        if user_bindep:
+            self.steps.append("ADD {0} /build/".format(user_bindep))
+            to_run.extend(['--user-bindep', '/build/{0}'.format(user_bindep)])
+
+        to_run.extend(['--write-bindep', dest_bindep])
+
+        self.steps.append("RUN {0}".format(' '.join(to_run)))
 
 
 class GalaxySteps(Steps):
@@ -61,24 +74,16 @@ class GalaxySteps(Steps):
 
 class BindepSteps(Steps):
     def __init__(self, context_file):
+        """The context file here must be the output from bindep"""
         self.steps = []
         if not context_file:
             return
 
         # requirements file added to build context
         self.steps.append("ADD {0} /build/".format(context_file))
-        self.steps.append("RUN pip3 install bindep")
         container_path = os.path.join('/build/', context_file)
-        # Create system-specific file of dnf requirements, details:
-        # - pipe output of bindep to bindep_out.txt, which becomes input to dnf
-        # - missing requirements cause exit code of 1, we have to mask this for docker/podman
         self.steps.append(
-            'RUN bindep -b -f {0} >> /build/bindep_out.txt; exit 0'.format(container_path)
-        )
-        # Install those files, details:
-        # - if bindep found nothing to install, then it leaves blank file
-        self.steps.append(
-            "RUN if [ -s /build/bindep_out.txt ]; then dnf -y install $(cat /build/bindep_out.txt); fi"
+            "RUN dnf -y install $(cat /build/{0})".format(container_path)
         )
 
 

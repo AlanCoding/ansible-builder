@@ -1,6 +1,4 @@
-import filecmp
 import os
-import shutil
 import textwrap
 import yaml
 
@@ -8,13 +6,20 @@ from . import constants
 from .colors import MessageColors
 from .exceptions import DefinitionError
 from .steps import AdditionalBuildSteps, GalaxySteps, PipSteps, IntrospectionSteps, BindepSteps
-from .utils import run_command, write_file
-from .requirements import sanitize_requirements, sanitize_bindep
+from .utils import run_command, write_file, copy_file
+from .requirements import sanitize_requirements
 import ansible_builder.introspect
 
 
-# Files that need to be moved into the build context
-CONTEXT_FILES = ['galaxy', 'python', 'system']
+# Files that need to be moved into the build context, and their naming inside the context
+CONTEXT_FILES = {
+    'galaxy': 'requirements.yml',
+    'python': 'requirements_user.txt',
+    'system': 'bindep_user.txt'
+}
+BINDEP_COMBINED = 'bindep_combined.txt'
+BINDEP_OUTPUT = 'bindep_output.txt'
+PIP_COMBINED = 'requirements_combined.txt'
 
 
 class AnsibleBuilder:
@@ -49,13 +54,12 @@ class AnsibleBuilder:
             self.build_context
         ]
 
-    @property
-    def introspect_command(self):
-        return [
-            self.container_runtime, "run",
-            "--rm", self.tag,
-            "introspect"
-        ]
+    def run_in_container(self, command, **kwargs):
+        wrapped_command = [
+            self.container_runtime, 'run',
+            '--rm', self.tag
+        ] + command
+        return run_command(wrapped_command, **kwargs)
 
     def build(self):
         self.containerfile.create_folder_copy_files()
@@ -64,11 +68,12 @@ class AnsibleBuilder:
         self.containerfile.prepare_galaxy_steps()
         print(MessageColors.OK + 'Writing partial Containerfile without collection requirements' + MessageColors.ENDC)
         self.containerfile.write()
-        run_command(self.build_command)
-        rc, output = run_command(self.introspect_command, capture_output=True)
-        collection_data = yaml.load("\n".join(output))
-        self.containerfile.prepare_system_steps(collection_data['system'])
-        self.containerfile.prepare_pip_steps(collection_data['python'])
+        rc, output = run_command(self.build_command, capture_output=True)
+        collection_data = ansible_builder.introspect.parse_introspect_output('\n'.join(output))
+        if collection_data.get('system'):
+            rc, output = self.run_in_container(['bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)])
+            self.containerfile.prepare_system_steps(bindep_output=output)
+        self.containerfile.prepare_pip_steps(collection_pip=collection_data['python'])
         self.containerfile.prepare_appended_steps()
         print(MessageColors.OK + 'Rewriting Containerfile to capture collection requirements' + MessageColors.ENDC)
         self.containerfile.write()
@@ -201,21 +206,12 @@ class Containerfile:
 
         os.makedirs(self.build_context, exist_ok=True)
 
-        for item in CONTEXT_FILES:
+        for item, new_name in CONTEXT_FILES.items():
             requirement_path = self.definition.get_dep_abs_path(item)
             if requirement_path is None:
                 continue
-            if item == 'python':
-                continue  # will be put into combined requirements.txt
-            dest = os.path.join(self.build_context, os.path.basename(requirement_path))
-            exists = os.path.exists(dest)
-            do_copy = True
-            if exists:
-                do_copy = not filecmp.cmp(requirement_path, dest, shallow=False)
-                if do_copy:
-                    print(MessageColors.WARNING + 'File {} had modifications and will be rewritten'.format(dest) + MessageColors.ENDC)
-            if do_copy:
-                shutil.copy(requirement_path, self.build_context)
+            dest = os.path.join(self.build_context, new_name)
+            copy_file(requirement_path, dest)
 
     def prepare_prepended_steps(self):
         additional_prepend_steps = self.definition.get_additional_commands()
@@ -238,50 +234,40 @@ class Containerfile:
     def prepare_introspection_steps(self):
         source = ansible_builder.introspect.__file__
         dest = os.path.join(self.build_context, 'introspect.py')
-        exists = os.path.exists(dest)
-        if not exists or not filecmp.cmp(source, dest, shallow=False):
-            shutil.copy(source, dest)
+        copy_file(source, dest)
 
-        self.steps.extend(IntrospectionSteps(os.path.basename(dest)))
+        user_files = {'python': None, 'system': None}
+        for item, context_name in CONTEXT_FILES.items():
+            if self.definition.get_dep_abs_path(item):
+                user_files[item] = context_name
+
+        self.steps.extend(
+            IntrospectionSteps(
+                'introspect.py', user_files['python'], user_files['system'],
+                BINDEP_COMBINED
+            )
+        )
 
     def prepare_galaxy_steps(self):
-        galaxy_file = self.definition.get_dep('galaxy')
-        if galaxy_file:
-            self.steps.extend(GalaxySteps(galaxy_file))
+        if self.definition.get_dep_abs_path('galaxy'):
+            self.steps.extend(GalaxySteps(CONTEXT_FILES['galaxy']))
         return self.steps
 
     def prepare_pip_steps(self, collection_pip):
-        python_req_file = self.definition.get_dep('python')
-
-        if python_req_file:
-            with open(self.definition.get_dep_abs_path('python'), 'r') as f:
-                user_py_reqs = f.read().split('\n')
-            collection_pip['user'] = user_py_reqs
         pip_list = sanitize_requirements(collection_pip)
 
         if ''.join(pip_list).strip():  # only use file if it is non-blank
-            pip_file = os.path.join(self.build_context, 'requirements.txt')
+            pip_file = os.path.join(self.build_context, PIP_COMBINED)
             write_file(pip_file, pip_list)
-            self.steps.extend(PipSteps('requirements.txt'))
+            self.steps.extend(PipSteps(PIP_COMBINED))
 
         return self.steps
 
-    def prepare_system_steps(self, collection_bindep):
-        system_req_file = self.definition.get_dep('system')
-
-        if system_req_file:
-            with open(self.definition.get_dep_abs_path('system'), 'r') as f:
-                user_py_reqs = f.read().split('\n')
-            collection_bindep['user'] = user_py_reqs
-        system_list = sanitize_bindep(collection_bindep)
-
-        system_req_text = '\n'.join(system_list + [''])
-        if system_req_text.strip():
-            system_file = os.path.join(self.build_context, 'bindep.txt')
-            with open(system_file, 'w') as f:
-                f.write(system_req_text)
-
-            self.steps.extend(BindepSteps('bindep.txt'))
+    def prepare_system_steps(self, bindep_output):
+        if bindep_output.strip():
+            system_file = os.path.join(self.build_context, BINDEP_OUTPUT)
+            write_file(system_file, bindep_output)
+            self.steps.extend(BindepSteps(BINDEP_OUTPUT))
 
         return self.steps
 
