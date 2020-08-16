@@ -198,7 +198,7 @@ def write_files(data, write_pip=None, write_bindep=None):
 
 
 def parse_introspect_output(stdout):
-    p = re.compille(
+    p = re.compile(
         '{0}(?P<yaml_text>.+){1}'.format(begin_delimiter, end_delimiter),
         flags=re.MULTILINE | re.DOTALL
     )

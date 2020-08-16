@@ -8,8 +8,8 @@ from .colors import MessageColors
 from .exceptions import DefinitionError
 from .main import AnsibleBuilder
 from . import constants
-from .introspect import add_introspect_options, process, write_files
-from .requirements import sanitize_requirements, sanitize_bindep
+from .introspect import add_introspect_options, process, write_files, simple_combine
+from .requirements import sanitize_requirements
 
 
 def run():
@@ -28,7 +28,7 @@ def run():
         data = process(args.folder, user_pip=args.user_pip, user_bindep=args.user_bindep)
         if args.sanitize:
             data['python'] = sanitize_requirements(data['python'])
-            data['system'] = sanitize_bindep(data['system'])
+            data['system'] = simple_combine(data['system'])
             print()
             print('Sanitized dependencies for {0}'.format(args.folder))
         else:

@@ -83,7 +83,7 @@ class BindepSteps(Steps):
         self.steps.append("ADD {0} /build/".format(context_file))
         container_path = os.path.join('/build/', context_file)
         self.steps.append(
-            "RUN dnf -y install $(cat /build/{0})".format(container_path)
+            "RUN dnf -y install $(cat {0})".format(container_path)
         )
 
 
