@@ -57,8 +57,8 @@ class AnsibleBuilder:
     def run_in_container(self, command, **kwargs):
         wrapped_command = [
             self.container_runtime, 'run',
-            '--rm', self.tag
-        ] + command
+            '--rm', self.tag, '/bin/bash', '-c'
+        ] + [' '.join(command)]
         return run_command(wrapped_command, **kwargs)
 
     def build(self):
@@ -76,10 +76,14 @@ class AnsibleBuilder:
             collection_data = ansible_builder.introspect.parse_introspect_output('\n'.join(output))
         if collection_data.get('system'):
             rc, output = self.run_in_container(
-                ['pip3', 'install', 'bindep;', 'bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)],
+                [
+                    'pip3', 'install', 'bindep;',
+                    'echo', '----begin_bindep_output----;',
+                    'bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)],
                 allow_error=True, capture_output=True
             )
-            self.containerfile.prepare_system_steps(bindep_output=output)
+            bindep_output = ('\n'.join(output)).split('----begin_bindep_output----\n', 1)[1].split('\n')
+            self.containerfile.prepare_system_steps(bindep_output=bindep_output)
         self.containerfile.prepare_pip_steps(collection_pip=collection_data['python'])
         self.containerfile.prepare_appended_steps()
         print(MessageColors.OK + 'Rewriting Containerfile to capture collection requirements' + MessageColors.ENDC)
