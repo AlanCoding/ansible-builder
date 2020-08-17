@@ -50,7 +50,7 @@ class IntrospectionSteps(Steps):
             self.steps.append("ADD {0} /build/".format(user_bindep))
             to_run.extend(['--user-bindep', '/build/{0}'.format(user_bindep)])
 
-        to_run.extend(['--write-bindep', dest_bindep])
+        to_run.extend(['--write-bindep', '/build/{0}'.format(dest_bindep)])
 
         self.steps.append("RUN {0}".format(' '.join(to_run)))
 

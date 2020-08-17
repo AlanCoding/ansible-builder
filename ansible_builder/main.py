@@ -64,8 +64,8 @@ class AnsibleBuilder:
     def build(self):
         self.containerfile.create_folder_copy_files()
         self.containerfile.prepare_prepended_steps()
-        self.containerfile.prepare_introspection_steps()
         self.containerfile.prepare_galaxy_steps()
+        self.containerfile.prepare_introspection_steps()
         print(MessageColors.OK + 'Writing partial Containerfile without collection requirements' + MessageColors.ENDC)
         self.containerfile.write()
         rc, output = run_command(self.build_command, capture_output=True)

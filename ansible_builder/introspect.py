@@ -52,20 +52,19 @@ def bindep_file_data(path):
 def process(data_dir=base_collections_path, user_pip=None, user_bindep=None):
     paths = []
     path_root = os.path.join(data_dir, 'ansible_collections')
-    if not os.path.exists(path_root):
-        return {'python': [], 'system': []}
 
     # build a list of all the valid collection paths
-    for namespace in sorted(os.listdir(path_root)):
-        if not os.path.isdir(os.path.join(path_root, namespace)):
-            continue
-        for name in sorted(os.listdir(os.path.join(path_root, namespace))):
-            collection_dir = os.path.join(path_root, namespace, name)
-            if not os.path.isdir(collection_dir):
+    if os.path.exists(path_root):
+        for namespace in sorted(os.listdir(path_root)):
+            if not os.path.isdir(os.path.join(path_root, namespace)):
                 continue
-            files_list = os.listdir(collection_dir)
-            if 'galaxy.yml' in files_list or 'MANIFEST.json' in files_list:
-                paths.append(collection_dir)
+            for name in sorted(os.listdir(os.path.join(path_root, namespace))):
+                collection_dir = os.path.join(path_root, namespace, name)
+                if not os.path.isdir(collection_dir):
+                    continue
+                files_list = os.listdir(collection_dir)
+                if 'galaxy.yml' in files_list or 'MANIFEST.json' in files_list:
+                    paths.append(collection_dir)
 
     # populate the requirements content
     py_req = {}
@@ -210,7 +209,7 @@ def parse_introspect_output(stdout):
 
 def add_introspect_options(parser):
     parser.add_argument(
-        'folder', default=base_collections_path,
+        'folder', default=base_collections_path, nargs='?',
         help=(
             'Ansible collections path(s) to introspect. '
             'This should have a folder named ansible_collections inside of it.'
@@ -225,11 +224,11 @@ def add_introspect_options(parser):
         help='An additional file to combine with collection bindep requirements.'
     )
     parser.add_argument(
-        '--write-bindep', dest='write_bindep',
+        '--write-pip', dest='write_pip',
         help='Write the combined bindep file to this location.'
     )
     parser.add_argument(
-        '--write-pip', dest='write_bindep',
+        '--write-bindep', dest='write_bindep',
         help='Write the combined bindep file to this location.'
     )
 
