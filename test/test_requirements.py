@@ -32,6 +32,5 @@ def test_skip_bad_formats():
     assert sanitize_requirements({'foo.bar': [
         'foo',
         'bar'
-    ],
-    'foo.bad': ['zizzer zazzer zuzz']  # not okay
+    ], 'foo.bad': ['zizzer zazzer zuzz']  # not okay
     }) == ['foo  # from collection foo.bar', 'bar  # from collection foo.bar']

@@ -202,6 +202,8 @@ def parse_introspect_output(stdout):
         flags=re.MULTILINE | re.DOTALL
     )
     m = p.search(stdout)
+    if m is None:
+        return None
     yaml_text = m.group('yaml_text').strip()
     data = yaml.safe_load(yaml_text)
     return data

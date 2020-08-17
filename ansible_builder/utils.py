@@ -7,7 +7,7 @@ import shutil
 from .colors import MessageColors
 
 
-def run_command(command, capture_output=False):
+def run_command(command, capture_output=False, allow_error=False):
     print(MessageColors.HEADER + 'Running command:' + MessageColors.ENDC)
     print(MessageColors.HEADER + '  {0}'.format(' '.join(command)) + MessageColors.ENDC)
 
@@ -23,7 +23,7 @@ def run_command(command, capture_output=False):
         sys.stdout.write(line)
 
     rc = process.poll()
-    if rc is not None and rc != 0:
+    if rc is not None and rc != 0 and (not allow_error):
         print(MessageColors.FAIL + f"An error occured (rc={rc}), see output line(s) above for details." + MessageColors.ENDC)
         sys.exit(1)
 

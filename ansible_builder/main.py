@@ -70,8 +70,15 @@ class AnsibleBuilder:
         self.containerfile.write()
         rc, output = run_command(self.build_command, capture_output=True)
         collection_data = ansible_builder.introspect.parse_introspect_output('\n'.join(output))
+        if collection_data is None:
+            # In case the build has already been ran once, a cached layer may be used for introspect
+            rc, output = self.run_in_container(['introspect'], capture_output=True)
+            collection_data = ansible_builder.introspect.parse_introspect_output('\n'.join(output))
         if collection_data.get('system'):
-            rc, output = self.run_in_container(['bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)])
+            rc, output = self.run_in_container(
+                ['bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)],
+                allow_error=True, capture_output=True
+            )
             self.containerfile.prepare_system_steps(bindep_output=output)
         self.containerfile.prepare_pip_steps(collection_pip=collection_data['python'])
         self.containerfile.prepare_appended_steps()
@@ -264,7 +271,7 @@ class Containerfile:
         return self.steps
 
     def prepare_system_steps(self, bindep_output):
-        if bindep_output.strip():
+        if ''.join(bindep_output).strip():
             system_file = os.path.join(self.build_context, BINDEP_OUTPUT)
             write_file(system_file, bindep_output)
             self.steps.extend(BindepSteps(BINDEP_OUTPUT))
