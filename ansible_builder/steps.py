@@ -39,7 +39,6 @@ class IntrospectionSteps(Steps):
         self.steps.extend([
             "ADD {0} /usr/local/bin/introspect".format(context_file),
             "RUN chmod +x /usr/local/bin/introspect",
-            "RUN pip3 install bindep"
         ])
 
         to_run = ['introspect']

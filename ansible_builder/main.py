@@ -76,7 +76,7 @@ class AnsibleBuilder:
             collection_data = ansible_builder.introspect.parse_introspect_output('\n'.join(output))
         if collection_data.get('system'):
             rc, output = self.run_in_container(
-                ['bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)],
+                ['pip3', 'install', 'bindep;', 'bindep', '-b', '-f', '/build/{0}'.format(BINDEP_COMBINED)],
                 allow_error=True, capture_output=True
             )
             self.containerfile.prepare_system_steps(bindep_output=output)
