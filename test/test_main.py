@@ -10,7 +10,7 @@ from ansible_builder.main import (
 
 
 def test_version():
-    assert __version__ == '0.4.0'
+    assert __version__ == '0.6.0'
 
 
 def test_definition_version(exec_env_definition_file):
